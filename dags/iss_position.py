@@ -1,3 +1,6 @@
+"""
+DAG для получения данных из API координат МКС и загрузки их в БД Postgres.
+"""
 import requests
 import json
 import logging as log
@@ -54,20 +57,23 @@ def extract_data():
         log.error(err)  # логируем
         raise ValueError(err)  # прерываем выполнение функции
 
-    # ti.xcom_push(key='iis_position', value=data)
     return data
 
 
+# загружаем данные в БД
 def load_data(data):
 
+    # проверяем данные
     data = _check_data(data)
 
-    print(data)
+    # print(data)
 
+    # postgres_conn_id берем из Airflow (Admin->Connections), который добавили вручную
     hook = PostgresHook(postgres_conn_id='DWH')
     conn = hook.get_conn()
     cursor = conn.cursor()
 
+    # запрос на создание таблицы для хранения результатов парсинга API
     create_table_query = """
         create table if not exists iss_position (
             id serial primary key,
@@ -77,6 +83,7 @@ def load_data(data):
         );
     """
 
+    # запрос на вставку данных
     insert_data_query = """
         insert into iss_position (lat, lon) values (%s, %s)
         returning id;
